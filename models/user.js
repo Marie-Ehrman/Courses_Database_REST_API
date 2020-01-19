@@ -2,7 +2,11 @@
 
 module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define('User', {
-
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
     firstName:{
       type: DataTypes.STRING,
       allowNull: false, // disallow null
@@ -60,7 +64,7 @@ module.exports = (sequelize, DataTypes) => {
 
   User.associate = function(models) {
     // associations can be defined here
-    User.hasMany(Course);
+    models.User.hasMany(models.Course);
   };
 
   return User;

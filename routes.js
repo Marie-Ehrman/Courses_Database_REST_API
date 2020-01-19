@@ -8,14 +8,16 @@ const bcryptjs = require('bcryptjs');
 // for parsing the user authentication header
 const auth = require('basic-auth');
 const router = express.Router();
-// const User = require('../models').User;
-
+const User = require('./models').User;
+const Course = require('./models').Course;
 
 /****************  User Routes  *******************/
-router.get('/users', (req,res)=> {
-    res.json({
-        message: 'USERS GET ROUTE!',
-      });
+router.get('/users',async (req,res)=> {
+    const users = await User.findAll();
+    res.json(users);
+    // res.json({
+    //     message: 'USERS GET ROUTE!',
+    //   });
 });
 
 
@@ -28,15 +30,17 @@ router.post('/users', (req,res)=> {
 });
 
 /****************  Course Routes  ****************/
-router.get('/courses', (req, res)=>{
-    res.json({
-        message:'COURSES GET ROUTE'
-    });
+router.get('/courses', async (req, res)=>{
+    const courses = await Course.findAll();
+    res.json(courses);
+    // res.json({
+    //     message:'COURSES GET ROUTE'
+    // });
 });
 
 router.get('/courses/:id', (req, res)=>{
     res.json({
-        message:'INDIVIDUAL COURSE GET ROUTE'
+        message:`COURSE ${req.params.id} GET ROUTE`
     });
 });
 
@@ -48,19 +52,19 @@ router.post('/courses', (req, res)=>{
 
 router.post('/courses/:id', (req, res)=>{
     res.json({
-        message:'INDIVIDUAL COURSE POST ROUTE'
+        message:`COURSE ${req.params.id} POST ROUTE`
     });
 });
 
 router.put('/courses/:id', (req, res)=>{
     res.json({
-        message:'INDIVIDUAL COURSE PUT ROUTE'
+        message:`COURSE ${req.params.id} PUT ROUTE`
     });
 });
 
 router.delete('/courses/:id', (req, res)=>{
     res.json({
-        message:'INDIVIDUAL COURSE DELETE ROUTE'
+        message:`COURSE ${req.params.id} DELETE ROUTE`
     });
 });
 

@@ -2,7 +2,12 @@
 
 module.exports = (sequelize, DataTypes) => {
   const Course = sequelize.define('Course', {
-    userId: User.id, // set to the User.Id
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    userId: DataTypes.INTEGER, // set to the User.Id
     title: {
       type: DataTypes.STRING,
       allowNull: false, // disallow null
@@ -32,9 +37,10 @@ module.exports = (sequelize, DataTypes) => {
     estimatedTime: DataTypes.STRING,
     materialsNeeded: DataTypes.STRING
   }, {sequelize});
+  
   Course.associate = function(models) {
     // associations can be defined here
-    Course.belongsTo(User);
+    models.Course.belongsTo(models.User);
   };
   return Course;
 };
