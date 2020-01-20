@@ -11,62 +11,125 @@ const router = express.Router();
 const User = require('./models').User;
 const Course = require('./models').Course;
 
-/****************  User Routes  *******************/
-router.get('/users',async (req,res)=> {
+
+//Middleware handler function for route callbacks
+function asyncHandler(cb){
+
+    return async(req, res, next) => {
+      try {
+        await cb(req, res, next)
+      } catch(error){ // handle promises that are rejected
+        res.status(500).send(error);
+      }
+    }
+
+}
+
+/********  AUTHENTICATE USER  **********/
+//modeled from Unit 9 REST API Authentication with Express lesson using auth and bcryptjs packages
+const authenticateUser = async (req, res, next) => {
+    let message = null; // initialized error message
     const users = await User.findAll();
-    res.json(users);
-    // res.json({
-    //     message: 'USERS GET ROUTE!',
-    //   });
-});
+    const credentials = auth(req);// get user's credentials from the request using "auth" package
+console.log(credentials);
+    if (credentials) { // the user enters credentials
+      const user = users.find(user => user.emailAddress === credentials.name); // find user in database
+        if (user) { // if the user exists compare user's password to the entered password
+        const authenticated = bcryptjs.compareSync(credentials.pass, user.password);
+  
+        if (authenticated) { // if the password matches, set the requests current
+          console.log(`Authentication successful for username: ${user.emailAddress}`);
+          req.currentUser = user; // if the user is authenticated, set it to current user
+        } else {
+          message = `Authentication failure for username: ${user.username}`;
+        }
+      } else {
+        message = `User not found for username: ${credentials.name}`;
+      }
+    } else {
+      message = 'Auth header not found';
+    }
+    if (message) { // if user cannot be authenticated
+      console.warn(message);
+      // Return a response with a 401 Unauthorized HTTP status code.
+      res.status(401).json({ message: 'Access Denied' });
+    } else {
+      next();
+    }
+  };
 
+/****************  User Routes  *******************/
 
-router.post('/users', (req,res)=> {
+// GET /api/users 200 - Returns the currently authenticated user
+router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
+    const user = req.currentUser;
+
     res.json({
-        message: 'USERS POST ROUTE WORKS!',
+      name: user.name,
+      username: user.username,
     });
+}));
+
+
+// POST /api/users 201 - Creates a user, sets the Location header to "/", and returns no content
+router.post('/users', asyncHandler(async (req,res)=> {
+    // res.json({
+    //     message: 'USERS POST ROUTE WORKS!',
+    // });
+    let user = await User.create(req.body);
+
     res.location('/');
     res.status(201).end();
-});
+}));
+
 
 /****************  Course Routes  ****************/
-router.get('/courses', async (req, res)=>{
+
+// GET /api/courses 200 - Returns a list of courses (including the user that owns each course)
+router.get('/courses', asyncHandler(async (req, res)=>{
     const courses = await Course.findAll();
     res.json(courses);
     // res.json({
     //     message:'COURSES GET ROUTE'
     // });
-});
+}));
 
-router.get('/courses/:id', (req, res)=>{
-    res.json({
-        message:`COURSE ${req.params.id} GET ROUTE`
-    });
-});
 
-router.post('/courses', (req, res)=>{
-    res.json({
-        message: 'COURSES POST ROUTE'
-    });
-});
+// GET /api/courses/:id 200 - Returns a the course (including the user that owns the course) for the provided course ID
+router.get('/courses/:id', asyncHandler(async (req, res)=>{
+    const course = await Course.findByPk(req.params.id);
+    res.json(course);
+    // res.json({
+    //     message:`COURSE ${req.params.id} GET ROUTE`
+    // });
+}));
 
-router.post('/courses/:id', (req, res)=>{
+
+// POST /api/courses 201 - Creates a course, sets the Location header to the URI for the course, and returns no content
+router.post('/courses/:id', asyncHandler(async (req, res)=>{
+    // pass in user id to the course model as the course id
     res.json({
         message:`COURSE ${req.params.id} POST ROUTE`
     });
-});
+    res.location('/courses/:id');
+    res.status(201).end();
+}));
 
-router.put('/courses/:id', (req, res)=>{
+
+// PUT /api/courses/:id 204 - Updates a course and returns no content
+router.put('/courses/:id', asyncHandler(async (req, res)=>{
     res.json({
         message:`COURSE ${req.params.id} PUT ROUTE`
     });
-});
+}));
 
-router.delete('/courses/:id', (req, res)=>{
+
+// DELETE /api/courses/:id 204 - Deletes a course and returns no content
+router.delete('/courses/:id', asyncHandler(async (req, res)=>{
     res.json({
         message:`COURSE ${req.params.id} DELETE ROUTE`
     });
-});
+}));
 
 
 module.exports = router;
