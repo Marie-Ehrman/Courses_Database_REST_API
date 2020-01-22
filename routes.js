@@ -19,6 +19,12 @@ function asyncHandler(cb){
       try {
         await cb(req, res, next)
       } catch(error){ // handle promises that are rejected
+            // if(error.name === "SequelizeValidationError") {
+            //     res.status(400);
+            //     res.json();
+            // } else {
+            //     next(error);
+            // }
         res.status(500).send(error);
       }
     }
@@ -31,25 +37,24 @@ const authenticateUser = async (req, res, next) => {
     let message = null; // initialized error message
     const users = await User.findAll();
     const credentials = auth(req);// get user's credentials from the request using "auth" package
-console.log(credentials);
     if (credentials) { // the user enters credentials
       const user = users.find(user => user.emailAddress === credentials.name); // find user in database
         if (user) { // if the user exists compare user's password to the entered password
-        const authenticated = bcryptjs.compareSync(credentials.pass, user.password);
-  
-        if (authenticated) { // if the password matches, set the requests current
-          console.log(`Authentication successful for username: ${user.emailAddress}`);
-          req.currentUser = user; // if the user is authenticated, set it to current user
+            const authenticated = bcryptjs.compareSync(credentials.pass, user.password);
+              if (authenticated) { // if the password matches, set the requests current
+                 console.log(`Authentication successful for username: ${user.emailAddress}`);
+                 req.currentUser = user; // if the user is authenticated, set it to current user
+              } else {
+                 message = `Authentication failure for username: ${user.username}`;
+            }
         } else {
-          message = `Authentication failure for username: ${user.username}`;
+            message = `User not found for username: ${credentials.name}`;
         }
-      } else {
-        message = `User not found for username: ${credentials.name}`;
-      }
     } else {
       message = 'Auth header not found';
     }
-    if (message) { // if user cannot be authenticated
+
+    if (message) { // if user cannot be authenticated send error status
       console.warn(message);
       // Return a response with a 401 Unauthorized HTTP status code.
       res.status(401).json({ message: 'Access Denied' });
@@ -62,73 +67,98 @@ console.log(credentials);
 
 // GET /api/users 200 - Returns the currently authenticated user
 router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
-    const user = req.currentUser;
+    const authUser = req.currentUser; // set the authenticated user to the one we will search the db for by id
 
-    res.json({
-      name: user.name,
-      username: user.username,
-    });
+    const user = await User.findByPk(authUser.id); // find the authenticated user in the db
+   
+    if(user){ // if user exists
+        res.json(user); // return the currently authenticated user
+        res.status(200); // respond with 200 ok status
+    } else {
+        res.status(400).json({ message: "User not found" }); // else return 400 bad request status
+    }
+
+
 }));
 
 
 // POST /api/users 201 - Creates a user, sets the Location header to "/", and returns no content
 router.post('/users', asyncHandler(async (req,res)=> {
-    // res.json({
-    //     message: 'USERS POST ROUTE WORKS!',
-    // });
-    let user = await User.create(req.body);
+
+    const user = req.body; // set user to the request body
+    user.password = bcryptjs.hashSync(user.password); // set the password to a hashed password
+
+    await User.create(req.body); // create new user
 
     res.location('/');
     res.status(201).end();
+
 }));
+
+
 
 
 /****************  Course Routes  ****************/
 
 // GET /api/courses 200 - Returns a list of courses (including the user that owns each course)
 router.get('/courses', asyncHandler(async (req, res)=>{
-    const courses = await Course.findAll();
+    const courses = await Course.findAll( { // !!!!!!!need to figure out how to display user info.
+        //  include: [ {
+        //     models: User,
+        //     as: 'user'
+        // } ],
+    });
     res.json(courses);
-    // res.json({
-    //     message:'COURSES GET ROUTE'
-    // });
+
 }));
 
 
 // GET /api/courses/:id 200 - Returns a the course (including the user that owns the course) for the provided course ID
 router.get('/courses/:id', asyncHandler(async (req, res)=>{
+
     const course = await Course.findByPk(req.params.id);
     res.json(course);
-    // res.json({
-    //     message:`COURSE ${req.params.id} GET ROUTE`
-    // });
+
 }));
 
 
 // POST /api/courses 201 - Creates a course, sets the Location header to the URI for the course, and returns no content
-router.post('/courses/:id', asyncHandler(async (req, res)=>{
-    // pass in user id to the course model as the course id
-    res.json({
-        message:`COURSE ${req.params.id} POST ROUTE`
-    });
-    res.location('/courses/:id');
+router.post('/courses', asyncHandler(async (req, res)=>{
+
+    const course =  await Course.create(req.body);
+
+    res.location('/courses/' + course.id);
     res.status(201).end();
+
 }));
 
 
 // PUT /api/courses/:id 204 - Updates a course and returns no content
 router.put('/courses/:id', asyncHandler(async (req, res)=>{
-    res.json({
-        message:`COURSE ${req.params.id} PUT ROUTE`
-    });
+    const course = await Course.findByPk(req.params.id);
+
+    if(course){
+        await course.update(req.body);
+        res.status(204).end();
+    } else {
+        res.status(400).json({ message: "Course not found" });
+    }
+    
 }));
 
 
 // DELETE /api/courses/:id 204 - Deletes a course and returns no content
 router.delete('/courses/:id', asyncHandler(async (req, res)=>{
-    res.json({
-        message:`COURSE ${req.params.id} DELETE ROUTE`
-    });
+    const course = await Course.findByPk(req.params.id);
+
+    if(course){
+        await course.destroy();
+        res.status(204).end();
+    } else {
+        res.status(404).json({ message: "Course not found" });
+
+    }
+
 }));
 
 

@@ -7,7 +7,6 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
-    userId: DataTypes.INTEGER,
     title: {
       type: DataTypes.STRING,
       allowNull: false, // disallow null
@@ -35,12 +34,20 @@ module.exports = (sequelize, DataTypes) => {
         }
     },
     estimatedTime: DataTypes.STRING,
-    materialsNeeded: DataTypes.STRING
+    materialsNeeded: DataTypes.STRING,
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false
+
+    }
   }, {sequelize});
   
-  Course.associate = function(models) {
+  Course.associate = (models) => {
     // associations can be defined here
-    models.Course.belongsTo(models.User);
+    models.Course.belongsTo(models.User,{
+        as: 'user',
+        foreignKey: 'userId'
+    });
   };
   return Course;
 };

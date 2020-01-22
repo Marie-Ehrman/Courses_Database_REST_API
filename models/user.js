@@ -62,9 +62,12 @@ module.exports = (sequelize, DataTypes) => {
   }, {sequelize});
 
 
-  User.associate = function(models) {
+  User.associate = (models) => {
     // associations can be defined here
-    models.User.hasMany(models.Course);
+    models.User.hasMany(models.Course,{
+      as: 'user',
+      foreigKey: 'userId'
+    });
   };
 
   return User;
