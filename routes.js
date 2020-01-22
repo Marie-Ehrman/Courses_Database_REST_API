@@ -86,12 +86,19 @@ router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
 router.post('/users', asyncHandler(async (req,res)=> {
 
     const user = req.body; // set user to the request body
+
+    if(user){
     user.password = bcryptjs.hashSync(user.password); // set the password to a hashed password
 
     await User.create(req.body); // create new user
 
     res.location('/');
     res.status(201).end();
+
+    } else {
+        res.status(400).json({ message: "User not found" }); // else return 400 bad request status
+
+    }
 
 }));
 
@@ -103,10 +110,11 @@ router.post('/users', asyncHandler(async (req,res)=> {
 // GET /api/courses 200 - Returns a list of courses (including the user that owns each course)
 router.get('/courses', asyncHandler(async (req, res)=>{
     const courses = await Course.findAll( { // !!!!!!!need to figure out how to display user info.
-        //  include: [ {
-        //     models: User,
-        //     as: 'user'
-        // } ],
+         include: [ 
+            {
+                model: User,
+            },
+        ],
     });
     res.json(courses);
 
@@ -123,7 +131,7 @@ router.get('/courses/:id', asyncHandler(async (req, res)=>{
 
 
 // POST /api/courses 201 - Creates a course, sets the Location header to the URI for the course, and returns no content
-router.post('/courses', asyncHandler(async (req, res)=>{
+router.post('/courses', authenticateUser, asyncHandler(async (req, res)=>{
 
     const course =  await Course.create(req.body);
 
@@ -134,7 +142,7 @@ router.post('/courses', asyncHandler(async (req, res)=>{
 
 
 // PUT /api/courses/:id 204 - Updates a course and returns no content
-router.put('/courses/:id', asyncHandler(async (req, res)=>{
+router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res)=>{
     const course = await Course.findByPk(req.params.id);
 
     if(course){
@@ -148,14 +156,14 @@ router.put('/courses/:id', asyncHandler(async (req, res)=>{
 
 
 // DELETE /api/courses/:id 204 - Deletes a course and returns no content
-router.delete('/courses/:id', asyncHandler(async (req, res)=>{
+router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res)=>{
     const course = await Course.findByPk(req.params.id);
 
     if(course){
         await course.destroy();
         res.status(204).end();
     } else {
-        res.status(404).json({ message: "Course not found" });
+        res.status(400).json({ message: "Course not found" });
 
     }
 
