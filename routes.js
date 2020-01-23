@@ -15,18 +15,13 @@ const Course = require('./models').Course;
 //Middleware handler function for route callbacks
 function asyncHandler(cb){
 
-    return async(req, res, next) => {
+    return async (req, res, next) => {
       try {
-        await cb(req, res, next)
+            await cb(req, res, next)
       } catch(error){ // handle promises that are rejected
-            // if(error.name === "SequelizeValidationError") {
-            //     res.status(400);
-            //     res.json();
-            // } else {
-            //     next(error);
-            // }
-        res.status(500).send(error);
-      }
+            console.log(error);
+            next(error);
+        }
     }
 
 }
@@ -87,18 +82,13 @@ router.post('/users', asyncHandler(async (req,res)=> {
 
     const user = req.body; // set user to the request body
 
-    if(user){
-    user.password = bcryptjs.hashSync(user.password); // set the password to a hashed password
+    if(user.password){
+        user.password = bcryptjs.hashSync(user.password); // set the password to a hashed password
+    }
 
     await User.create(req.body); // create new user
 
-    res.location('/');
-    res.status(201).end();
-
-    } else {
-        res.status(400).json({ message: "User not found" }); // else return 400 bad request status
-
-    }
+    res.status(201).location('/').end();
 
 }));
 
@@ -109,10 +99,10 @@ router.post('/users', asyncHandler(async (req,res)=> {
 
 // GET /api/courses 200 - Returns a list of courses (including the user that owns each course)
 router.get('/courses', asyncHandler(async (req, res)=>{
-    const courses = await Course.findAll( { // !!!!!!!need to figure out how to display user info.
+    const courses = await Course.findAll( {
          include: [ 
             {
-                model: User,
+                model: User, // display the user assigned to each course
             },
         ],
     });
@@ -124,7 +114,14 @@ router.get('/courses', asyncHandler(async (req, res)=>{
 // GET /api/courses/:id 200 - Returns a the course (including the user that owns the course) for the provided course ID
 router.get('/courses/:id', asyncHandler(async (req, res)=>{
 
-    const course = await Course.findByPk(req.params.id);
+    const course = await Course.findByPk(req.params.id, {
+        include: [ 
+           {
+               model: User, // display the user assigend to the course
+           },
+       ],
+   });    
+   
     res.json(course);
 
 }));
@@ -134,37 +131,39 @@ router.get('/courses/:id', asyncHandler(async (req, res)=>{
 router.post('/courses', authenticateUser, asyncHandler(async (req, res)=>{
 
     const course =  await Course.create(req.body);
-
-    res.location('/courses/' + course.id);
-    res.status(201).end();
+    res.status(201).location('/courses/' + course.id).end();
 
 }));
 
 
 // PUT /api/courses/:id 204 - Updates a course and returns no content
-router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res)=>{
+router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res, next)=>{
+   
     const course = await Course.findByPk(req.params.id);
-
+    console.log(course);
+    
     if(course){
-        await course.update(req.body);
-        res.status(204).end();
+
+            await course.update(req.body);
+            res.status(204).end(); // for put request, send status code 204
+
     } else {
-        res.status(400).json({ message: "Course not found" });
+            next();
     }
+
     
 }));
 
 
 // DELETE /api/courses/:id 204 - Deletes a course and returns no content
-router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res)=>{
+router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res, next)=>{
     const course = await Course.findByPk(req.params.id);
 
     if(course){
         await course.destroy();
         res.status(204).end();
     } else {
-        res.status(400).json({ message: "Course not found" });
-
+        next();
     }
 
 }));
