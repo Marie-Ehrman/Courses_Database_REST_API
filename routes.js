@@ -1,6 +1,8 @@
 'use strict';
 
 const express = require('express');
+const router = express.Router();
+
 
 // include express validator for data validation and destructure
 const { check, validationResult } = require('express-validator');
@@ -9,7 +11,6 @@ const bcryptjs = require('bcryptjs');
 // for parsing the user authentication header
 const auth = require('basic-auth');
 
-const router = express.Router();
 const User = require('./models').User;
 const Course = require('./models').Course;
 
@@ -71,7 +72,15 @@ const authenticateUser = async (req, res, next) => {
 router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
     const authUser = req.currentUser; // set the authenticated user to the one we will search the db for by id
 
-    const user = await User.findByPk(authUser.id); // find the authenticated user in the db
+    const user = await User.findByPk(authUser.id, {
+        attributes: { // do not display sensitive user info
+            exclude: [
+                'password', 
+                'createdAt', 
+                'updatedAt'
+            ] 
+        },
+    }); // find the authenticated user in the db
    
     if(user){ // if user exists
         res.status(200).json(user); // respond with 200 ok status and return the currently authenticated user
@@ -106,9 +115,22 @@ router.post('/users', asyncHandler(async (req,res)=> {
 // GET /api/courses 200 - Returns a list of courses (including the user that owns each course)
 router.get('/courses', asyncHandler(async (req, res)=>{
     const courses = await Course.findAll( {
-         include: [ 
+        attributes: { 
+            exclude: [ // exclude the created and updated attributes
+                'createdAt',
+                'updatedAt'
+            ] 
+        },
+        include: [ 
             {
                 model: User, // display the user assigned to each course
+                attributes: { // do not display sensitive user info
+                    exclude: [
+                        'password', 
+                        'createdAt', 
+                        'updatedAt'
+                    ] 
+                },
             },
         ],
     });
@@ -121,14 +143,27 @@ router.get('/courses', asyncHandler(async (req, res)=>{
 router.get('/courses/:id', asyncHandler(async (req, res)=>{
 
     const course = await Course.findByPk(req.params.id, {
+        attributes: { 
+            exclude: [  // exclude the created and updated attributes
+                'createdAt',
+                'updatedAt'
+            ] 
+        },
         include: [ 
            {
                model: User, // display the user assigend to the course
+               attributes: { 
+                exclude: [
+                    'password', 
+                    'createdAt', 
+                    'updatedAt'
+                ] 
+            },
            },
        ],
    });    
    
-    res.json(course); // send the course info to client
+    res.status(200).json(course); // send the course info to client
 
 }));
 
@@ -165,10 +200,18 @@ router.put('/courses/:id', authenticateUser, [ //put won't throw error, so use e
         res.status(400).json({ errors: errorMessages });
 
     } else { // otherwise update the course
-
+        const authUser = req.currentUser; // set the authenticated user to a variable
+console.log(authUser);
         const course = await Course.findByPk(req.params.id); // find course via params
-        await course.update(req.body);
-        res.status(204).end(); // for put request, send status code 204
+
+        // only allow the currently authenticated user to update their course
+        if(authUser.id === course.userId){ 
+            await course.update(req.body);
+            res.status(204).end(); // for put request, send status code 204
+        } else {
+            res.status(403).json({message: "You may only make changes to your own courses"});
+        }
+
 
     }
 
@@ -178,13 +221,21 @@ router.put('/courses/:id', authenticateUser, [ //put won't throw error, so use e
 // DELETE /api/courses/:id 204 - Deletes a course and returns no content
 router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res, next)=>{
 
+    const authUser = req.currentUser; // set the authenticated user to a variable
+
     const course = await Course.findByPk(req.params.id); // find course via params
 
     if(course){
+        
+        // only allow the currently authenticated user to delete their course
+        if(authUser.id === course.userId){ 
 
-        await course.destroy(); // delete course from the database
-        res.status(204).end(); // for delete request, send status code 204
-
+            await course.destroy(); // delete course from the database
+            res.status(204).end(); // for delete request, send status code 204
+        
+        } else {
+            res.status(403).json({message: "You may only make changes to your own courses"});
+        }
     } else {
         next();
     }
