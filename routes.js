@@ -1,26 +1,28 @@
 'use strict';
 
 const express = require('express');
+
 // include express validator for data validation and destructure
 const { check, validationResult } = require('express-validator');
 // for hashing user passwords
 const bcryptjs = require('bcryptjs');
 // for parsing the user authentication header
 const auth = require('basic-auth');
+
 const router = express.Router();
 const User = require('./models').User;
 const Course = require('./models').Course;
 
 
-//Middleware handler function for route callbacks
+//error handler middleware for catching errors
 function asyncHandler(cb){
 
     return async (req, res, next) => {
       try {
             await cb(req, res, next)
-      } catch(error){ // handle promises that are rejected
-            console.log(error);
-            next(error);
+      } catch(err){ // handle promises that are rejected
+            console.log(err);
+            next(err);
         }
     }
 
@@ -29,34 +31,39 @@ function asyncHandler(cb){
 /********  AUTHENTICATE USER  **********/
 //modeled from Unit 9 REST API Authentication with Express lesson using auth and bcryptjs packages
 const authenticateUser = async (req, res, next) => {
-    let message = null; // initialized error message
+    let message = null; // initialize error message
     const users = await User.findAll();
     const credentials = auth(req);// get user's credentials from the request using "auth" package
-    if (credentials) { // the user enters credentials
+    if (credentials) { // if the user enters credentials
+
       const user = users.find(user => user.emailAddress === credentials.name); // find user in database
-        if (user) { // if the user exists compare user's password to the entered password
-            const authenticated = bcryptjs.compareSync(credentials.pass, user.password);
-              if (authenticated) { // if the password matches, set the requests current
+        if (user) { // if the user exists, compare user's password to the entered password
+
+            const authenticated = bcryptjs.compareSync(credentials.pass, user.password);// compare passwords
+              if (authenticated) { 
                  console.log(`Authentication successful for username: ${user.emailAddress}`);
                  req.currentUser = user; // if the user is authenticated, set it to current user
               } else {
-                 message = `Authentication failure for username: ${user.username}`;
+                 message = `Authentication failure for username: ${user.emailAddress}`; // username error message
             }
+
         } else {
-            message = `User not found for username: ${credentials.name}`;
+            message = `User not found for username: ${credentials.name}`; // not found error message
         }
+
     } else {
       message = 'Auth header not found';
     }
 
     if (message) { // if user cannot be authenticated send error status
       console.warn(message);
-      // Return a response with a 401 Unauthorized HTTP status code.
-      res.status(401).json({ message: 'Access Denied' });
+      res.status(401).json({ message: 'Access Denied' }); // return a response with a 401 unauthorized
     } else {
       next();
     }
   };
+
+
 
 /****************  User Routes  *******************/
 
@@ -67,8 +74,7 @@ router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
     const user = await User.findByPk(authUser.id); // find the authenticated user in the db
    
     if(user){ // if user exists
-        res.json(user); // return the currently authenticated user
-        res.status(200); // respond with 200 ok status
+        res.status(200).json(user); // respond with 200 ok status and return the currently authenticated user
     } else {
         res.status(400).json({ message: "User not found" }); // else return 400 bad request status
     }
@@ -88,7 +94,7 @@ router.post('/users', asyncHandler(async (req,res)=> {
 
     await User.create(req.body); // create new user
 
-    res.status(201).location('/').end();
+    res.status(201).location('/').end(); // respond with 201 no content and set location to  '/'
 
 }));
 
@@ -122,7 +128,7 @@ router.get('/courses/:id', asyncHandler(async (req, res)=>{
        ],
    });    
    
-    res.json(course);
+    res.json(course); // send the course info to client
 
 }));
 
@@ -130,38 +136,55 @@ router.get('/courses/:id', asyncHandler(async (req, res)=>{
 // POST /api/courses 201 - Creates a course, sets the Location header to the URI for the course, and returns no content
 router.post('/courses', authenticateUser, asyncHandler(async (req, res)=>{
 
-    const course =  await Course.create(req.body);
-    res.status(201).location('/courses/' + course.id).end();
+    const course =  await Course.create(req.body); // create the course given the req body info
+    res.status(201).location('/courses/' + course.id).end(); // respond with 201 no content and set location to  '/course/:id' route
 
 }));
 
 
 // PUT /api/courses/:id 204 - Updates a course and returns no content
-router.put('/courses/:id', authenticateUser, asyncHandler(async (req, res, next)=>{
+router.put('/courses/:id', authenticateUser, [ //put won't throw error, so use express validator
+    check('title') // check title value
+    .exists()
+    .withMessage('Please provide a value for "Title"'),
+  check('description') // check description value
+    .exists()
+    .withMessage('Please provide a value for "Description"'),
+    check('userId') // check userId value
+    .exists()
+    .withMessage('Please provide a value for "User Id"'),
+] , asyncHandler(async (req, res, next)=> {
    
-    const course = await Course.findByPk(req.params.id);
-    console.log(course);
-    
-    if(course){
+    const errors = validationResult(req); // after checks, create errors array if any exist
 
-            await course.update(req.body);
-            res.status(204).end(); // for put request, send status code 204
+    if(!errors.isEmpty()){ // if errors array isn't empty handle them
 
-    } else {
-            next();
+        //  map through errors array to get a list of error messages
+        const errorMessages = errors.array().map(error => error.msg);
+        // set response to 400 and return the validation errors to the client
+        res.status(400).json({ errors: errorMessages });
+
+    } else { // otherwise update the course
+
+        const course = await Course.findByPk(req.params.id); // find course via params
+        await course.update(req.body);
+        res.status(204).end(); // for put request, send status code 204
+
     }
 
-    
 }));
 
 
 // DELETE /api/courses/:id 204 - Deletes a course and returns no content
 router.delete('/courses/:id', authenticateUser, asyncHandler(async (req, res, next)=>{
-    const course = await Course.findByPk(req.params.id);
+
+    const course = await Course.findByPk(req.params.id); // find course via params
 
     if(course){
-        await course.destroy();
-        res.status(204).end();
+
+        await course.destroy(); // delete course from the database
+        res.status(204).end(); // for delete request, send status code 204
+
     } else {
         next();
     }
