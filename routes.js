@@ -22,7 +22,6 @@ function asyncHandler(cb){
       try {
             await cb(req, res, next)
       } catch(err){ // handle promises that are rejected
-            console.log(err);
             next(err);
         }
     }
@@ -72,15 +71,15 @@ const authenticateUser = async (req, res, next) => {
 router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
     const authUser = req.currentUser; // set the authenticated user to the one we will search the db for by id
 
-    const user = await User.findByPk(authUser.id, {
-        attributes: { // do not display sensitive user info
-            exclude: [
+    const user = await User.findByPk(authUser.id, { // find the authenticated user in the db
+        attributes: { 
+            exclude: [ // do not display sensitive user info
                 'password', 
                 'createdAt', 
                 'updatedAt'
             ] 
         },
-    }); // find the authenticated user in the db
+    }); 
    
     if(user){ // if user exists
         res.status(200).json(user); // respond with 200 ok status and return the currently authenticated user
@@ -93,18 +92,30 @@ router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
 
 
 // POST /api/users 201 - Creates a user, sets the Location header to "/", and returns no content
-router.post('/users', asyncHandler(async (req,res)=> {
+router.post('/users', [
+    check('emailAddress')
+        .isEmail() // verify for valid email
+        .withMessage('Please provide a valid email address')
+], asyncHandler(async (req,res)=> {
 
-    const user = req.body; // set user to the request body
+    const errors = validationResult(req); // if email not valid log errors
+    if (!errors.isEmpty()) {
+        const errorMessages = errors.array().map(error => error.msg); //map error messages
+        res.status(400).json({ errors: errorMessages }); // set error status and send message
+    
+    } else { // else post new user
+        const user = req.body; // set user to the request body
 
-    if(user.password){
-        user.password = bcryptjs.hashSync(user.password); // set the password to a hashed password
+        if(user.password){
+            user.password = bcryptjs.hashSync(user.password); //  hash password with bcrypjs
+        }
+    
+        await User.create(req.body); // create new user
+    
+        res.status(201).location('/').end(); // respond with 201 no content and set location to  '/'
+    
     }
-
-    await User.create(req.body); // create new user
-
-    res.status(201).location('/').end(); // respond with 201 no content and set location to  '/'
-
+   
 }));
 
 
@@ -180,14 +191,14 @@ router.post('/courses', authenticateUser, asyncHandler(async (req, res)=>{
 // PUT /api/courses/:id 204 - Updates a course and returns no content
 router.put('/courses/:id', authenticateUser, [ //put won't throw error, so use express validator
     check('title') // check title value
-    .exists()
-    .withMessage('Please provide a value for "Title"'),
-  check('description') // check description value
-    .exists()
-    .withMessage('Please provide a value for "Description"'),
+        .exists()
+        .withMessage('Please provide a value for "Title"'),
+    check('description') // check description value
+        .exists()
+        .withMessage('Please provide a value for "Description"'),
     check('userId') // check userId value
-    .exists()
-    .withMessage('Please provide a value for "User Id"'),
+        .exists()
+        .withMessage('Please provide a value for "User Id"'),
 ] , asyncHandler(async (req, res, next)=> {
    
     const errors = validationResult(req); // after checks, create errors array if any exist
@@ -201,7 +212,6 @@ router.put('/courses/:id', authenticateUser, [ //put won't throw error, so use e
 
     } else { // otherwise update the course
         const authUser = req.currentUser; // set the authenticated user to a variable
-console.log(authUser);
         const course = await Course.findByPk(req.params.id); // find course via params
 
         // only allow the currently authenticated user to update their course

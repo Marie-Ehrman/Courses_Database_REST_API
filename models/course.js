@@ -35,13 +35,13 @@ module.exports = (sequelize, DataTypes) => {
     },
     estimatedTime: DataTypes.STRING,
     materialsNeeded: DataTypes.STRING,
-    // userId: {
-    //   type: DataTypes.INTEGER,
-    // }
+    userId: {
+      type: DataTypes.INTEGER,
+    }
   }, {sequelize});
   
   Course.associate = (models) => {
-    // associations can be defined here
+    // associations defined here
     models.Course.belongsTo(models.User,{
         foreignKey: {
             fieldName: 'userId',
