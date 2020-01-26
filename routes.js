@@ -92,11 +92,7 @@ router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
 
 
 // POST /api/users 201 - Creates a user, sets the Location header to "/", and returns no content
-router.post('/users', [
-    check('emailAddress')
-        .isEmail() // verify for valid email
-        .withMessage('Please provide a valid email address')
-], asyncHandler(async (req,res)=> {
+router.post('/users', asyncHandler(async (req,res)=> {
 
     const errors = validationResult(req); // if email not valid log errors
     if (!errors.isEmpty()) {
