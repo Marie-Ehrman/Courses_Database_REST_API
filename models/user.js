@@ -36,28 +36,28 @@ module.exports = (sequelize, DataTypes) => {
     emailAddress: {
       type: DataTypes.STRING,
       allowNull: false, // disallow null
-        //set validators to disallow empty field
-        validate: {
-            notNull: {
-                msg: 'Please provide a value for "Email Address"',
-            },
-            notEmpty: { // prevent the email value from being set to an empty string
-                msg: '"Email" is required'         
-            },
-            isEmail: true,
-        }
+        //set validators to disallow empty field and check for valid email
+      validate: {
+          notNull: {
+              msg: 'Please provide a value for "Email Address"',
+          },
+          notEmpty: { // prevent the email value from being set to an empty string
+              msg: '"Email" is required'         
+          },
+          isEmail: true,
+      }
     },
     password: {
        type: DataTypes.STRING,
       allowNull: false, // disallow null
         //set validators to disallow empty field
-        validate: {
-            notNull: {
-                msg: 'Please provide a value for "Password"',
-            },
-            notEmpty: { // prevent the Password value from being set to an empty string
-                msg: '"Password" is required'         
-            }      
+      validate: {
+          notNull: {
+              msg: 'Please provide a value for "Password"',
+          },
+          notEmpty: { // prevent the Password value from being set to an empty string
+              msg: '"Password" is required'         
+          }      
         }
      }
   }, {sequelize});

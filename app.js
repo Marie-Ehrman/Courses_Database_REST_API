@@ -53,9 +53,14 @@ app.use((err, req, res, next) => {
     console.error(`Global error handler: ${JSON.stringify(err.stack)}`);
   }
 
-  if(err.name === 'SequelizeValidationError'){
+  if(err.name === 'SequelizeValidationError' ){
     err.status = 400;
     err.message = err.errors.map(err => err.message);
+  }
+
+  if( err.name === 'SequelizeUniqueConstraintError' ){
+    err.status = 400;
+    err.message = 'User account already exists';
   }
 
   res.status(err.status || 500).json({

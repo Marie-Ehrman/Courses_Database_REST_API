@@ -95,6 +95,7 @@ router.get('/users', authenticateUser, asyncHandler(async (req,res)=> {
 router.post('/users', asyncHandler(async (req,res)=> {
 
     const errors = validationResult(req); // if email not valid log errors
+
     if (!errors.isEmpty()) {
         const errorMessages = errors.array().map(error => error.msg); //map error messages
         res.status(400).json({ errors: errorMessages }); // set error status and send message
