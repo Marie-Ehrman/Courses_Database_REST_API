@@ -10,6 +10,8 @@ This Project Serves as the backend for a Course Database, complete with User Aut
 - Launch from terminal: `> npm start`
 - Navigate to `localhost:5000` in your browser
 
+- Upload `RESTAPI.postman_collection.json` in Postman for quick route testing
+
  ## Technology
 Project files initialized with Express Generator CLI and Sequelize CLI
 
